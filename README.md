@@ -15,7 +15,7 @@ Basically there are four kinds of components:
 * `percona xtradb cluster`(pxc) as database, with strong consistency.
 
 Illustration
-![components](demo/components.svg "components")
+![components](demo/components.jpg "components")
  
 ## Prerequisites
  - docker
