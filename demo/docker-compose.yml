@@ -1,0 +1,220 @@
+version: "3.3"
+services:
+  # Since instance scale or replica is enabled only in docker swarm, keep it simple with duplicate configuration
+
+  # DATABASE CLUSTER
+  pxc_master:
+    image: percona/percona-xtradb-cluster:5.6
+    networks:
+      net_djangovue:
+    environment:
+      CLUSTER_NAME: CLUSTER_PXC
+      MYSQL_ROOT_PASSWORD: b0a1d2p3a4s5s6w7d
+      XTRABACKUP_PASSWORD: b0a1d2p3a4s5s6w7d
+    #olumes:
+    # - pxc_master_v:/var/lib/mysql:rw
+    privileged: true
+
+  pxc_slave1:
+    image: percona/percona-xtradb-cluster:5.6
+    networks:
+      net_djangovue:
+    environment:
+      CLUSTER_NAME: CLUSTER_PXC
+      MYSQL_ROOT_PASSWORD: b0a1d2p3a4s5s6w7d
+      XTRABACKUP_PASSWORD: b0a1d2p3a4s5s6w7d
+      CLUSTER_JOIN: pxc_master
+    #volumes:
+    #  - pxc_slave1_v:/var/lib/mysql:rw
+    depends_on:
+      - pxc_master
+    privileged: true
+
+  pxc_slave2:
+    image: percona/percona-xtradb-cluster:5.6
+    networks:
+      net_djangovue:
+    environment:
+      CLUSTER_NAME: CLUSTER_PXC
+      MYSQL_ROOT_PASSWORD: b0a1d2p3a4s5s6w7d
+      XTRABACKUP_PASSWORD: b0a1d2p3a4s5s6w7d
+      CLUSTER_JOIN: pxc_master
+    depends_on:
+      - pxc_master
+    privileged: true
+
+  # DB LOAD BALANCER WITH keepalived
+  pxc_haproxy1:
+    build:
+      context: ./docker_pxc/build
+    networks:
+      net_djangovue:
+    volumes:
+      - type: bind
+        source: ./docker_pxc/bind/haproxy.cfg
+        target: /etc/haproxy/haproxy.cfg
+        read_only: true
+      - type: bind
+        source: ./docker_pxc/bind/keepalived.conf
+        target: /etc/keepalived/keepalived.conf
+        read_only: true
+    depends_on:
+      - pxc_master
+      - pxc_slave1
+      - pxc_slave2
+    command: "bash -c 'service keepalived start; haproxy -f /etc/haproxy/haproxy.cfg; sleep infinity'"
+    privileged: true
+
+  pxc_haproxy2:
+    build:
+      context: ./docker_pxc/build
+    networks:
+      net_djangovue:
+    volumes:
+      - type: bind
+        source: ./docker_pxc/bind/haproxy.cfg
+        target: /etc/haproxy/haproxy.cfg
+        read_only: true
+      - type: bind
+        source: ./docker_pxc/bind/keepalived.conf
+        target: /etc/keepalived/keepalived.conf
+        read_only: true
+    command: "bash -c 'service keepalived start; haproxy -f /etc/haproxy/haproxy.cfg; sleep infinity'"
+    depends_on:
+      - pxc_master
+      - pxc_slave1
+      - pxc_slave2
+    privileged: true
+
+  # BACKEND
+  django1:
+    build:
+      context: ./docker_backend/build
+    networks:
+      net_djangovue:
+    depends_on:
+      - "pxc_master"
+    volumes:
+      - type: bind
+        source: ./docker_backend/bind/command.sh
+        target: /root/command.sh
+        read_only: true
+      - type: bind
+        source: ./docker_backend/bind/gunicorn.conf
+        target: /etc/supervisor/conf.d/gunicorn.conf
+        read_only: true
+      - type: bind
+        source: ./docker_backend/bind/gunicorn.sh
+        target: /root/gunicorn.sh
+        read_only: true
+      - type: bind
+        source: ./docker_backend/bind/init_db_schema.py
+        target: /root/init_db_schema.py
+        read_only: true
+      - type: bind
+        source: ./docker_backend/bind/manage.py
+        target: /root/django-vue-template/manage.py
+        read_only: true
+      - type: bind
+        source: ./docker_backend/bind/backend
+        target: /root/django-vue-template/backend
+        read_only: true
+      - type: bind
+        source: ./docker_backend/bind/dist
+        target: /root/django-vue-template/dist
+        read_only: true
+
+  django2:
+    build:
+      context: ./docker_backend/build
+    networks:
+      net_djangovue:
+    depends_on:
+      - "pxc_master"
+    volumes:
+      - type: bind
+        source: ./docker_backend/bind/command.sh
+        target: /root/command.sh
+        read_only: true
+      - type: bind
+        source: ./docker_backend/bind/gunicorn.conf
+        target: /etc/supervisor/conf.d/gunicorn.conf
+        read_only: true
+      - type: bind
+        source: ./docker_backend/bind/gunicorn.sh
+        target: /root/gunicorn.sh
+        read_only: true
+      - type: bind
+        source: ./docker_backend/bind/init_db_schema.py
+        target: /root/init_db_schema.py
+        read_only: true
+      - type: bind
+        source: ./docker_backend/bind/manage.py
+        target: /root/django-vue-template/manage.py
+        read_only: true
+      - type: bind
+        source: ./docker_backend/bind/backend
+        target: /root/django-vue-template/backend
+        read_only: true
+      - type: bind
+        source: ./docker_backend/bind/dist
+        target: /root/django-vue-template/dist
+        read_only: true
+
+  # BACKEND LOAD BALANCER WITH keepalived, ALSO SERVING STATIC FRONTEND
+  vue_nginx1:
+    build:
+      context: ./docker_frontend/build
+    networks:
+      net_djangovue:
+    volumes:
+      - type: bind
+        source: ./docker_frontend/bind/nginx_djangovue.conf
+        target: /etc/nginx/conf.d/nginx_djangovue.conf
+        read_only: true
+      - type: bind
+        source: ./docker_frontend/bind/keepalived.conf
+        target: /etc/keepalived/keepalived.conf
+        read_only: true
+      - type: bind
+        source: ./docker_frontend/bind/dist
+        target: /data/dist
+        read_only: true
+    command: "bash -c 'service keepalived start; nginx -g \"daemon off;\"'"
+    depends_on:
+      - django1
+      - django2
+    privileged: true
+
+  vue_nginx2:
+    build:
+      context: ./docker_frontend/build
+    networks:
+      net_djangovue:
+    volumes:
+      - type: bind
+        source: ./docker_frontend/bind/nginx_djangovue.conf
+        target: /etc/nginx/conf.d/nginx_djangovue.conf
+        read_only: true
+      - type: bind
+        source: ./docker_frontend/bind/keepalived.conf
+        target: /etc/keepalived/keepalived.conf
+        read_only: true
+      - type: bind
+        source: ./docker_frontend/bind/dist
+        target: /data/dist
+        read_only: true
+    command: "bash -c 'service keepalived start; nginx -g \"daemon off;\"'"
+    depends_on:
+      - django1
+      - django2
+    privileged: true
+
+# All in subnet so that host network would not be polluted
+networks:
+  net_djangovue:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+
+# No persistent volume for simplicity
