@@ -23,6 +23,8 @@ Illustration
 
 #### Deploy
 ```
+$ cd demo
+
 # build all the relevant docker images
 $ docker-compose build
 
