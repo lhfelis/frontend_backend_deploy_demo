@@ -8,7 +8,7 @@ For simplicity, use docker with custom bridge network to avoid ip address or por
 
 It uses [gtalarico/django-vue-template](https://github.com/gtalarico/django-vue-template) as frontend/backend components.
 
-Basically there are four kind of components:
+Basically there are four kinds of components:
 * `nginx` which serves frontend and also used as load balancer for backend, with `keepalived` for HA
 * `django` backend
 * `haproxy` used as load balancer for database, with `keepalived` for HA
@@ -17,11 +17,11 @@ Basically there are four kind of components:
 Illustration
 ![components](demo/components.svg "components")
  
-#### Prerequisites
+## Prerequisites
  - docker
  - docker-compose [install](https://docs.docker.com/compose/install/)
 
-#### Deploy
+## Deploy
 ```
 $ cd demo
 
@@ -40,10 +40,10 @@ $ bash fault.sh stop1
 $ bash fault.sh restore1
 
 # clear containers, volumes, and network
-$ dokcer-compose down -v
+$ docker-compose down -v
 ```
  
-#### Test
+## Test
 Access `http://172.30.0.100:8080` from host machine for frontend page.
 
 Clicking `Django Rest` link on the page would guide you to where add or delete `(Subject, Message)` is possible, which touches the database.
@@ -54,7 +54,7 @@ When deleting messages, you may find POST to endpoint `/api/messages/undefined/`
 It seems like a bug in the original [django-vue-template](https://github.com/gtalarico/django-vue-template) project.
 Refesh the page and ignore it.
 
-### Fault behavior
+## Fault behavior
 Use `fault.sh` to emulate fault and recovery of parts of the system.
 
 `bash fault.sh stop1` removes half of the containers(`group1`) but the system still functions.
