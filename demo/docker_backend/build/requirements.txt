@@ -1,6 +1,6 @@
 dj-database-url==0.5.0
 django==2.1.4
-djangorestframework==3.9.0
+djangorestframework==3.11.2
 gunicorn==19.9.0
 mysqlclient==1.4.6
 pytz==2018.7
